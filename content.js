@@ -6,10 +6,10 @@ function isContextValid() {
     try {
         // Accessing chrome.runtime.id will throw "Extension context invalidated"
         // if the background connection is dead.
-        return typeof chrome !== 'undefined' && 
-               !!chrome.runtime && 
-               !!chrome.runtime.id && 
-               !!chrome.storage;
+        return typeof chrome !== 'undefined' &&
+            !!chrome.runtime &&
+            !!chrome.runtime.id &&
+            !!chrome.storage;
     } catch (e) {
         return false;
     }
@@ -19,6 +19,19 @@ function checkForAutofill() {
     console.log('Mostaql Ext: Checking for pending autofill...');
     handleAutofillSequence();
 }
+
+let lastPath = '';
+let observerStarted = false;
+
+function getPageType() {
+    const path = location.pathname;
+    if (/\/project[s]?\/\d+/.test(path)) return 'project';
+    if (/\/messages/.test(path)) return 'messages';
+    if (/\/profile/.test(path)) return 'profile';
+    if (path === '/' || path === "") return 'home';
+    return 'other';
+}
+
 
 function handleAutofillSequence() {
     if (!isContextValid()) return;
@@ -42,24 +55,24 @@ function handleAutofillSequence() {
         }
 
         console.log('Found pending autofill data:', autofill);
-        
+
         // Wait for form elements
         let attempts = 0;
         const maxAttempts = 20; // 10 seconds total
-        
+
         const interval = setInterval(() => {
             // Flexible selectors for Amount - Prioritize name attribute
-            const amountInput = document.querySelector('input[name="cost"]') || 
-                                document.querySelector('input[name="amount"]') || 
-                                document.querySelector('#bid__cost') || 
-                                document.querySelector('#amount');
-                                
+            const amountInput = document.querySelector('input[name="cost"]') ||
+                document.querySelector('input[name="amount"]') ||
+                document.querySelector('#bid__cost') ||
+                document.querySelector('#amount');
+
             // Flexible selectors for Duration - Prioritize name attribute
-            const durationInput = document.querySelector('input[name="period"]') || 
-                                  document.querySelector('input[name="duration"]') || 
-                                  document.querySelector('#bid__period') || 
-                                  document.querySelector('#duration');
-            
+            const durationInput = document.querySelector('input[name="period"]') ||
+                document.querySelector('input[name="duration"]') ||
+                document.querySelector('#bid__period') ||
+                document.querySelector('#duration');
+
             if (amountInput && durationInput) {
                 clearInterval(interval);
                 // Ensure inputs are visible/interactive
@@ -79,13 +92,13 @@ function handleAutofillSequence() {
 
 function fillForm(amountInput, durationInput, data) {
     console.log(`Filling form: Amount=${data.amount}, Duration=${data.duration}`);
-    
+
     // Improved event trigger sequence
     const triggerEvents = (el) => {
         el.dispatchEvent(new Event('focus', { bubbles: true }));
         el.dispatchEvent(new Event('input', { bubbles: true }));
         el.dispatchEvent(new Event('change', { bubbles: true }));
-        
+
         // Key events might be needed for some validation logic
         el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
         el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
@@ -114,7 +127,7 @@ function fillForm(amountInput, durationInput, data) {
         amountInput.classList.add('mostaql-autofilled');
         triggerEvents(amountInput);
     }
-    
+
     setTimeout(() => {
         if (data.duration > 0) {
             durationInput.focus();
@@ -125,11 +138,11 @@ function fillForm(amountInput, durationInput, data) {
 
         // Fill Proposal content
         if (data.proposal) {
-            const proposalTextarea = document.querySelector('#bid__details') || 
-                                     document.querySelector('#description') || 
-                                     document.querySelector('textarea[name="details"]') ||
-                                     document.querySelector('textarea[name="description"]') ||
-                                     document.querySelector('#proposal-description');
+            const proposalTextarea = document.querySelector('#bid__details') ||
+                document.querySelector('#description') ||
+                document.querySelector('textarea[name="details"]') ||
+                document.querySelector('textarea[name="description"]') ||
+                document.querySelector('#proposal-description');
             if (proposalTextarea) {
                 proposalTextarea.focus();
                 proposalTextarea.value = data.proposal;
@@ -143,13 +156,13 @@ function fillForm(amountInput, durationInput, data) {
     const form = document.querySelector('#add-proposal-form') || amountInput.closest('form') || amountInput.parentElement;
     if (form) {
         form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
+
         // Show Toast Notification
         const toast = document.createElement('div');
         toast.className = 'mostaql-autofill-toast';
         toast.innerHTML = '<i class="fa fa-magic"></i> <span>تم تعبئة تفاصيل العرض تلقائياً!</span>';
         document.body.appendChild(toast);
-        
+
         // Trigger animation
         setTimeout(() => toast.classList.add('show'), 100);
         setTimeout(() => {
@@ -169,7 +182,7 @@ function injectTrackButton() {
 
     // --- Container for Extension Buttons ---
     let buttonContainer = document.getElementById('mostaql-ext-btn-container');
-    
+
     // Ensure it's in the right place
     if (buttonContainer && buttonContainer.parentElement !== metaCardBody) {
         buttonContainer.remove();
@@ -555,7 +568,7 @@ function handleQuickBidClick() {
 
         const minBudget = getBudgetFromPage();
         const projectData = extractProjectData();
-        
+
         // Duration: Extract number if possible
         let durationDays = 0;
         if (projectData.duration) {
@@ -700,7 +713,7 @@ function getProjectDescription() {
     detailRows.forEach(row => {
         const label = row.querySelector('.field-label')?.textContent.trim();
         const value = row.querySelector('.text-wrapper-div:not(.field-label)')?.textContent.trim();
-        
+
         if (label && value) {
             description += `${label}: ${value}\n`;
         }
@@ -720,18 +733,18 @@ function getProjectDescription() {
 function getBudgetFromPage() {
     const budgetEl = document.querySelector('[data-type="project-budget_range"]');
     if (!budgetEl) return 0;
-    
+
     // e.g. "$25.00 - $50.00"
     const text = budgetEl.textContent.trim();
     if (!text) return 0;
-    
+
     // Extract logical numbers (handling commas)
     const matches = text.replace(/,/g, '').match(/\d+(\.\d+)?/g);
     if (!matches || matches.length === 0) return 0;
-    
+
     // Parse floats
     const values = matches.map(m => parseFloat(m));
-    
+
     // Return Minimum
     return Math.min(...values);
 }
@@ -902,10 +915,400 @@ function createPromptModal(onSave, existingPrompt = null) {
 
 
 
+
+
+function runInjectors() {
+    if (!isContextValid()) return;
+
+    const page = getPageType();
+    console.log("[DEBUG] ", page);
+
+
+    if (page === 'project') {
+        injectTrackButton();
+        checkForAutofill();
+    }
+
+    if (page === 'home') {
+        injectDashboardStats();
+    }
+
+    if (page === 'profile') {
+        injectProfileTools();
+    }
+}
+
+
+function startObserverOnce() {
+    if (observerStarted) return;
+    observerStarted = true;
+    setInterval(() => {
+        if (location.pathname !== lastPath) {
+            lastPath = location.pathname;
+            runInjectors();
+        }
+    }, 500);
+    const obs = new MutationObserver(() => {
+        runInjectors();
+    });
+    obs.observe(document.documentElement, { childList: true, subtree: true });
+}
+
+function injectDashboardStats() {
+    // Use a stable target unique to that page
+    const target = document.querySelector('#project-states');
+    if (!target) return;
+
+    // Prevent duplicate inject
+    if (document.getElementById('mostaql-msg-tools')) return;
+
+    const box = document.createElement('div');
+    box.id = 'mostaql-msg-tools';
+    box.className = 'mostaql-ext-sidebar-container';
+    box.innerHTML = '';
+    target.prepend(box);
+
+    // Remove status=processing and status=lost filter links from the original page
+    [
+        'https://mostaql.com/dashboard/bids?status=processing',
+        'https://mostaql.com/dashboard/bids?status=lost',
+    ].forEach(href => {
+        document.querySelectorAll(`a[href="${href}"]`).forEach(el => {
+            el.removeAttribute('href');
+            el.style.cursor = 'default';
+            el.style.pointerEvents = 'none';
+        });
+    });
+
+    // Remove the completed and lost progress bar items from the original page
+    ['.label-prj-completed', '.label-prj-lost'].forEach(cls => {
+        document.querySelectorAll(cls).forEach(bar => {
+            const wrapper = bar.closest('.progress__bar');
+            if (wrapper) wrapper.remove();
+        });
+    });
+
+
+    function extractBidRow(renderedHtml) {
+        if (typeof renderedHtml !== 'string') {
+            console.error('extractBidRow expects a string, received:', typeof renderedHtml);
+            return null;
+        }
+        const tpl = document.createElement("template");
+        tpl.innerHTML = renderedHtml.trim();
+        const row = tpl.content.querySelector("tr.bid-row");
+        if (!row) return null;
+
+        const titleLink = row.querySelector("h2 a");
+        const statusEl = row.querySelector(".label-prj-pending, .label"); // fallback
+        const timeEl = row.querySelector("time[datetime]");
+        const priceEl = row.querySelector(".project__meta li .fa-money")?.closest("li")?.querySelector("span");
+        const url = (titleLink?.getAttribute("href") || null).split("-")[0];
+
+        let publishedText = null;
+        if (timeEl) {
+            const li = timeEl.closest("li");
+            publishedText = li ? li.textContent.replace(/\s+/g, " ").trim() : null;
+        }
+
+        return {
+            title: titleLink?.textContent?.trim() || null,
+            url,
+            status: statusEl?.textContent?.trim() || null,
+            publishedDatetime: timeEl?.getAttribute("datetime") || null,
+            price: priceEl?.textContent?.trim() || null
+        };
+    }
+
+    function generateStatusStats(items, opts = {}) {
+        const now = opts.now instanceof Date ? opts.now : new Date();
+        const days30Ms = 30 * 24 * 60 * 60 * 1000;
+        const day1Ms = 1 * 24 * 60 * 60 * 1000;
+
+        const safeArray = Array.isArray(items) ? items : [];
+        const normalizeStatus = (s) => (typeof s === "string" && s.trim() ? s.trim() : "UNKNOWN");
+
+        // Parse "YYYY-MM-DD HH:mm:ss" safely (treat as local time).
+        // Also supports ISO strings and Date.
+        const parsePublished = (v) => {
+            if (!v) return null;
+            if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
+
+            if (typeof v !== "string") return null;
+            const str = v.trim();
+            if (!str) return null;
+
+            // If it's already ISO-like, Date can parse it.
+            // But "YYYY-MM-DD HH:mm:ss" is not reliably parsed across browsers -> custom parse.
+            const m = str.match(
+                /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/
+            );
+            if (m) {
+                const year = Number(m[1]);
+                const month = Number(m[2]) - 1; // 0-based
+                const day = Number(m[3]);
+                const hour = Number(m[4] ?? 0);
+                const min = Number(m[5] ?? 0);
+                const sec = Number(m[6] ?? 0);
+                const d = new Date(year, month, day, hour, min, sec);
+                return Number.isNaN(d.getTime()) ? null : d;
+            }
+
+            const d = new Date(str);
+            return Number.isNaN(d.getTime()) ? null : d;
+        };
+
+        const makeEmptyBucket = () => ({
+            total: 0,
+            byStatus: {},
+            invalidDateCount: 0, // items we couldn't parse date for (only meaningful for time windows)
+        });
+
+        const overall = makeEmptyBucket();
+        const last30Days = makeEmptyBucket();
+        const last1Day = makeEmptyBucket();
+
+        const addToBucket = (bucket, status) => {
+            bucket.total += 1;
+            bucket.byStatus[status] = (bucket.byStatus[status] ?? 0) + 1;
+        };
+
+        for (const item of safeArray) {
+            const status = normalizeStatus(item?.status);
+
+            // overall always counts regardless of date
+            addToBucket(overall, status);
+
+            // windowed stats need date
+            const published = parsePublished(item?.publishedDatetime);
+            if (!published) {
+                last30Days.invalidDateCount += 1;
+                last1Day.invalidDateCount += 1;
+                continue;
+            }
+
+            const ageMs = now.getTime() - published.getTime();
+
+            // ignore future dates (clock skew) from windows
+            if (ageMs < 0) continue;
+
+            if (ageMs <= days30Ms) addToBucket(last30Days, status);
+            if (ageMs <= day1Ms) addToBucket(last1Day, status);
+        }
+
+        const uniqueStatuses = Array.from(
+            new Set(Object.keys(overall.byStatus))
+        ).sort((a, b) => a.localeCompare(b, "ar"));
+
+        return {
+            meta: {
+                now: now.toISOString(),
+                totalItems: safeArray.length,
+                uniqueStatuses,
+            },
+            status: overall,        // overall counts
+            last30Days: last30Days, // within last 30 days
+            last1Day: last1Day,     // within last 24 hours
+        };
+    }
+
+    async function fetchBidPage(pageNumber) {
+        const url = `https://mostaql.com/dashboard/bids?page=${pageNumber}&sort=latest`;
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "Accept": "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+            throw new Error(`Page ${pageNumber} request failed`);
+        }
+
+        return await response.json();
+    }
+
+    function processBidsFromPage(data) {
+        const bids = [];
+
+        if (data.collection && Array.isArray(data.collection)) {
+            data.collection.forEach((bidObject) => {
+                const htmlString = bidObject.rendered || bidObject;
+                const item = extractBidRow(htmlString);
+                if (item) {
+                    item.apiBidId = bidObject.id || null;
+                    bids.push(item);
+                }
+            });
+        }
+
+        return bids;
+    }
+
+    async function fetchAllBids() {
+        const itemsPerPage = 25;
+        const allBids = [];
+
+        // Fetch first page to get total count
+        const firstData = await fetchBidPage(1);
+
+        console.log("all bids count:", firstData.count);
+
+        const totalPages = Math.ceil(firstData.count / itemsPerPage);
+        console.log("total pages:", totalPages);
+
+        // Process first page data
+        const firstPageBids = processBidsFromPage(firstData);
+        allBids.push(...firstPageBids);
+
+        // Fetch remaining pages
+        for (let page = 2; page <= totalPages; page++) {
+            console.log(`Fetching page ${page}...`);
+
+            try {
+                const data = await fetchBidPage(page);
+                const pageBids = processBidsFromPage(data);
+                allBids.push(...pageBids);
+            } catch (err) {
+                console.warn(`Page ${page} failed:`, err.message);
+                continue;
+            }
+        }
+
+        const stats = generateStatusStats(allBids);
+
+        return stats;
+    }
+
+    function renderBidStats(stats) {
+        const BIDS_URL = 'https://mostaql.com/dashboard/bids';
+
+        // Shared status config lookup
+        const STATUS_CONFIG = {
+            'مكتمل': { label: 'مكتملة', cssClass: 'label-prj-completed', href: `${BIDS_URL}?status=completed` },
+            'مستبعد': { label: 'مستبعدة', cssClass: 'label-prj-lost', href: BIDS_URL },
+            'مُغلق': { label: 'مُغلق', cssClass: 'label-prj-closed', href: BIDS_URL },
+            'بانتظار الموافقة': { label: 'بانتظار الموافقة', cssClass: 'label-prj-open', href: `${BIDS_URL}?status=pending` },
+        };
+
+        const pct = (part, whole) => whole > 0 ? Math.round((part / whole) * 100) : 0;
+
+        // Build a single progress bar row
+        const makeBar = ({ label, count, pct: p, cssClass = '', href = BIDS_URL, isLink = true }) => {
+            const inner = `
+                <div class="projects-progress">
+                    <div class="clearfix">
+                        <div class="pull-right">${count} ${label}</div>
+                        <div class="pull-left">${p}%</div>
+                    </div>
+                    <div class="progress progress--slim">
+                        <div class="progress-bar ${cssClass}" role="progressbar"
+                             aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100"
+                             style="width:${p}%">
+                            <span class="sr-only">${p}%</span>
+                        </div>
+                    </div>
+                </div>`;
+            return isLink
+                ? `<a href="${href}" class="progress__bar docs-creator">${inner}</a>`
+                : `<span class="progress__bar">${inner}</span>`;
+        };
+
+        // Build bars from a status map against a byStatus object
+        const buildBars = (keys, byStatus, total) =>
+            keys.map(key => {
+                const cfg = STATUS_CONFIG[key] || { label: key, cssClass: '', href: BIDS_URL };
+                const count = byStatus[key] || 0;
+                return makeBar({ label: cfg.label, count, pct: pct(count, total), cssClass: cfg.cssClass, href: cfg.href });
+            });
+
+        // Build a full stats column
+        const renderColumn = ({ icon, title, summaryBar, bars, emptyMsg }) => `
+            <div class="col-sm-4 progress__bars">
+                <p class="text-muted mostaql-stats-header">
+                    <i class="fa ${icon}"></i> ${title}
+                </p>
+                ${summaryBar}
+                ${bars.length > 0 ? bars.join('') : `<span class="text-muted mostaql-stats-empty">${emptyMsg || ''}</span>`}
+            </div>`;
+
+        const { status: overall, last30Days, last1Day } = stats;
+
+        // ── Overall ──
+        const overallColumn = renderColumn({
+            icon: 'fa-list-ul',
+            title: 'إجمالي العروض',
+            summaryBar: makeBar({ label: 'إجمالي العروض', count: overall.total, pct: 100, href: BIDS_URL }),
+            bars: buildBars(['مكتمل', 'مستبعد', 'مُغلق'], overall.byStatus, overall.total),
+        });
+
+        // ── Last 30 Days ──
+        const last30Column = renderColumn({
+            icon: 'fa-calendar',
+            title: 'آخر 30 يوم',
+            summaryBar: makeBar({ label: 'آخر 30 يوم (إجمالي)', count: last30Days.total, pct: pct(last30Days.total, overall.total), cssClass: 'label-prj-open', href: BIDS_URL }),
+            bars: buildBars(['بانتظار الموافقة', 'مستبعد', 'مُغلق'], last30Days.byStatus, last30Days.total),
+        });
+
+        // ── Today ──
+        const todayKeys = Object.keys(last1Day.byStatus);
+        const todayColumn = renderColumn({
+            icon: 'fa-clock-o',
+            title: 'اليوم',
+            summaryBar: makeBar({ label: 'اليوم (إجمالي)', count: last1Day.total, pct: pct(last1Day.total, overall.total), cssClass: 'label-prj-processing', href: BIDS_URL }),
+            bars: buildBars(todayKeys, last1Day.byStatus, last1Day.total),
+            emptyMsg: 'لا توجد عروض اليوم',
+        });
+
+        // ── Render ──
+        const existing = document.getElementById('mostaql-bid-stats');
+        if (existing) existing.remove();
+
+        box.insertAdjacentHTML('afterend', `
+            <div class="row content-middle-sm" id="mostaql-bid-stats">
+                ${overallColumn}
+                ${last30Column}
+                ${todayColumn}
+            </div>`);
+    }
+
+    async function loadStats() {
+        try {
+            const stats = await fetchAllBids();
+            console.log("Final stats:", stats);
+            renderBidStats(stats);
+        } catch (err) {
+            console.error("Error fetching bids:", err);
+        }
+    }
+
+    // Auto-load on inject
+    loadStats();
+}
+
+// Example: profile page injector
+function injectProfileTools() {
+    const target = document.querySelector('.profile_card') || document.querySelector('#profile-sidebar');
+    if (!target) return;
+
+    if (document.getElementById('mostaql-profile-tools')) return;
+
+    const box = document.createElement('div');
+    box.id = 'mostaql-profile-tools';
+    box.innerHTML = `<button class="btn btn-success">أداة بروفايل</button>`;
+    target.appendChild(box);
+}
+
+
+
 // Initial injection
 function initExtension() {
-    injectTrackButton();
-    checkForAutofill();
+    lastPath = location.pathname;
+    runInjectors();
+    startObserverOnce();
 }
 
 if (document.readyState === 'loading') {
@@ -913,4 +1316,3 @@ if (document.readyState === 'loading') {
 } else {
     initExtension();
 }
-
