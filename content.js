@@ -1282,21 +1282,18 @@ function injectDashboardStats() {
             `;
             
             const sortedBids = recent24hBids.sort((a,b) => b.ageMs - a.ageMs);
-            
-            // Distribute across 3 columns as evenly as possible (e.g., 7 bids -> 3, 2, 2)
             const numCols = 3;
-            let remaining = sortedBids.length;
-            let startIndex = 0;
+            
+            // Create buckets for each column
+            const buckets = Array.from({ length: numCols }, () => []);
+            
+            // Distribute row-by-row (Horizontal-first distribution)
+            sortedBids.forEach((bid, index) => {
+                buckets[index % numCols].push(bid);
+            });
             
             for (let i = 0; i < numCols; i++) {
-                if (startIndex >= sortedBids.length && i > 0) break; // Allow at least the first column to render the header
-                
-                const colsLeft = numCols - i;
-                const chunkSize = Math.max(0, Math.ceil(remaining / colsLeft));
-                const chunk = sortedBids.slice(startIndex, startIndex + chunkSize);
-                
-                startIndex += chunkSize;
-                remaining -= chunkSize;
+                const chunk = buckets[i];
                 
                 countdownsHtml += `<div class="col-sm-4 progress__bars">`;
                 
@@ -1307,7 +1304,6 @@ function injectDashboardStats() {
                     </p>
                     `;
                 } else {
-                    // Match the header height so columns align perfectly
                     countdownsHtml += `
                     <p class="mostaql-stats-header" style="visibility:hidden;">
                         -
@@ -1315,40 +1311,40 @@ function injectDashboardStats() {
                     `;
                 }
                 
-                countdownsHtml += chunk.map(bid => {
-                    // Calculate time left
-                    const totalMs = 24 * 60 * 60 * 1000;
-                    const msLeft = totalMs - bid.ageMs;
-                    if (msLeft <= 0) return '';
-                    
-                    const pct = Math.max(0, Math.min(100, Math.round(((totalMs - msLeft) / totalMs) * 100)));
-                    const appliedAtStr = bid.published.toLocaleTimeString('ar-EG', { hour: '2-digit', minute:'2-digit' });
-                    
-                    // Colors change as it gets closer to 100%
-                    let color = '#dc3545'; // Red for < 25% (just applied)
-                    if (pct >= 85) color = '#28a745'; // Green (almost ready)
-                    else if (pct >= 50) color = '#ffc107'; // Yellow
-                    else if (pct >= 25) color = '#17a2b8'; // Cyan
-                    
-                    return `
-                        <a href="${bid.url || '#'}" ${bid.url ? 'target="_blank"' : ''} class="progress__bar docs-creator">
-                            <div class="projects-progress" title="تاريخ التقديم: ${appliedAtStr}">
-                                <div class="clearfix">
-                                    <div class="pull-right" style="max-width: 65%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                                        ${bid.title || 'عرض'}
+                if (chunk.length > 0) {
+                    countdownsHtml += chunk.map(bid => {
+                        const totalMs = 24 * 60 * 60 * 1000;
+                        const msLeft = totalMs - bid.ageMs;
+                        if (msLeft <= 0) return '';
+                        
+                        const pct = Math.max(0, Math.min(100, Math.round(((totalMs - msLeft) / totalMs) * 100)));
+                        const appliedAtStr = bid.published.toLocaleTimeString('ar-EG', { hour: '2-digit', minute:'2-digit' });
+                        
+                        let color = '#dc3545';
+                        if (pct >= 85) color = '#28a745';
+                        else if (pct >= 50) color = '#ffc107';
+                        else if (pct >= 25) color = '#17a2b8';
+                        
+                        return `
+                            <a href="${bid.url || '#'}" ${bid.url ? 'target="_blank"' : ''} class="progress__bar docs-creator">
+                                <div class="projects-progress" title="تاريخ التقديم: ${appliedAtStr}">
+                                    <div class="clearfix">
+                                        <div class="pull-right" style="max-width: 65%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                            ${bid.title || 'عرض'}
+                                        </div>
+                                        <div class="pull-left frelancia-countdown" data-ms-left="${msLeft}" style="color:${color}; font-family:monospace; font-weight:bold; letter-spacing:0.5px; direction:ltr;">
+                                            --:--:--
+                                        </div>
                                     </div>
-                                    <div class="pull-left frelancia-countdown" data-ms-left="${msLeft}" style="color:${color}; font-family:monospace; font-weight:bold; letter-spacing:0.5px; direction:ltr;">
-                                        --:--:--
+                                    <div class="progress progress--slim">
+                                        <div class="progress-bar frelancia-progress-bar" role="progressbar" style="width:${pct}%; background-color:${color};">
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="progress progress--slim">
-                                    <div class="progress-bar frelancia-progress-bar" role="progressbar" style="width:${pct}%; background-color:${color};">
-                                    </div>
-                                </div>
-                            </div>
-                        </a>
-                    `;
-                }).join('');
+                            </a>
+                        `;
+                    }).join('');
+                }
                 
                 countdownsHtml += `</div>`;
             }
