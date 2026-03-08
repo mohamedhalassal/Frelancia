@@ -153,6 +153,7 @@ function computeBidTrackerStats(allBids) {
     const now = new Date();
     const bidsInRange = [];
     const bidsToday = [];
+    const byStatus = {};
     let availableSlots = 0;
 
     for (const bid of allBids) {
@@ -164,6 +165,9 @@ function computeBidTrackerStats(allBids) {
 
         if (ageMs <= THIRTY_DAYS_MS) {
             const msLeft = THIRTY_DAYS_MS - ageMs;
+            const normalizedStatus = normalizeStatusLabel(bid.status);
+            byStatus[normalizedStatus] = (byStatus[normalizedStatus] || 0) + 1;
+
             bidsInRange.push({
                 title: bid.title,
                 url: bid.url,
@@ -184,9 +188,7 @@ function computeBidTrackerStats(allBids) {
         }
     }
 
-    // Sort by ageMs descending (oldest first = closest to expiring)
     bidsInRange.sort((a, b) => b.ageMs - a.ageMs);
-
     const nextAvailable = bidsInRange.length > 0 ? bidsInRange[0] : null;
 
     return {
@@ -194,8 +196,24 @@ function computeBidTrackerStats(allBids) {
         todayCount: bidsToday.length,
         availableSlots,
         nextAvailable,
+        byStatus,
         bids: bidsInRange,
     };
+}
+
+/**
+ * Normalizes raw Arabic status text into a consistent label key.
+ * @param {string} rawStatus - Raw status from the API
+ * @returns {string} - Normalized status label
+ */
+function normalizeStatusLabel(rawStatus) {
+    if (!rawStatus) return 'بانتظار الموافقة';
+    const s = rawStatus.trim();
+    if (s.includes('مكتمل')) return 'مكتمل';
+    if (s.includes('مستبعد')) return 'مستبعد';
+    if (s.includes('مُغلق') || s.includes('مغلق')) return 'مُغلق';
+    if (s.includes('انتظار')) return 'بانتظار الموافقة';
+    return s;
 }
 
 // --- Main Data Loader ---
@@ -224,6 +242,7 @@ async function loadBidTrackerData() {
 
         const stats = computeBidTrackerStats(allBids);
         renderBidTrackerSummary(stats);
+        renderBidStatusCards(stats.byStatus, stats.total30d);
         renderBidTimeline(stats.bids);
         startBidTrackerCountdowns();
     } catch (error) {
@@ -261,6 +280,58 @@ function renderBidTrackerSummary(stats) {
     } else if (nextEl) {
         nextEl.textContent = 'متاح الآن!';
     }
+}
+
+/** Status display configuration: icon, color, and Arabic label. */
+const BID_STATUS_CONFIG = {
+    'بانتظار الموافقة': { icon: 'fa-clock',        color: '#f59e0b', bg: '#fef3c7', label: 'بانتظار الموافقة' },
+    'مكتمل':           { icon: 'fa-check-circle',  color: '#10b981', bg: '#d1fae5', label: 'مكتملة' },
+    'مستبعد':          { icon: 'fa-times-circle',   color: '#ef4444', bg: '#fee2e2', label: 'مستبعدة' },
+    'مُغلق':           { icon: 'fa-ban',            color: '#6b7280', bg: '#f3f4f6', label: 'مُغلقة' },
+};
+
+/**
+ * Renders status breakdown cards into the status grid container.
+ * @param {Object} byStatus - Map of status label → count
+ * @param {number} total - Total bids in the 30-day window
+ */
+function renderBidStatusCards(byStatus, total) {
+    const container = document.getElementById('bidsStatusGrid');
+    if (!container) return;
+
+    const statusKeys = Object.keys(byStatus);
+
+    if (statusKeys.length === 0) {
+        container.innerHTML = '<p class="help-text" style="text-align:center; padding:20px;">لا توجد بيانات حالات.</p>';
+        return;
+    }
+
+    container.innerHTML = statusKeys.map(statusKey => {
+        const count = byStatus[statusKey];
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        const config = BID_STATUS_CONFIG[statusKey] || {
+            icon: 'fa-question-circle',
+            color: '#6b7280',
+            bg: '#f3f4f6',
+            label: statusKey,
+        };
+
+        return `
+            <div class="bid-status-card">
+                <div class="bid-status-icon" style="background: ${config.bg}; color: ${config.color};">
+                    <i class="fas ${config.icon}"></i>
+                </div>
+                <div class="bid-status-info">
+                    <span class="bid-status-count">${count}</span>
+                    <span class="bid-status-label">${config.label}</span>
+                </div>
+                <div class="bid-status-bar-wrap">
+                    <div class="bid-status-bar" style="width: ${pct}%; background: ${config.color};"></div>
+                </div>
+                <span class="bid-status-pct" style="color: ${config.color};">${pct}%</span>
+            </div>
+        `;
+    }).join('');
 }
 
 /**
@@ -454,6 +525,9 @@ function showBidLoadingState() {
     `;
 
     resetBidSummaryCards();
+
+    const statusGrid = document.getElementById('bidsStatusGrid');
+    if (statusGrid) statusGrid.innerHTML = '';
 }
 
 /**
