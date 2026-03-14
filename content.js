@@ -731,7 +731,12 @@ function extractProjectData() {
         openProjects: openProjects || '0',
         underwayProjects: underwayProjects || '0',
         clientJoined: clientJoined || 'غير معروف',
-        clientType: clientType || 'صاحب عمل'
+        clientType: clientType || 'صاحب عمل',
+        attachments: Array.from(document.querySelectorAll('#projectDetailsTab #project-files-panel .attachment a[href]'))
+            .map(a => ({
+                url: a.href,
+                name: a.getAttribute('title') || a.innerText.trim()
+            }))
     };
 }
 
@@ -1669,8 +1674,8 @@ async function executeExportAll() {
     const messages = document.querySelectorAll("#chat-root [id^='message-'], .message-item");
     
     let chatData = [];
-    let textOutput = "تصدير محادثة مستقل\n\n";
-    let textOutputNoTime = "";
+    let textOutput = "تصدير محادثة مستقل (بالتاريخ)\n\n";
+    let textOutputNoTime = "تصدير محادثة مستقل (بدون تاريخ)\n\n";
     let mediaUrls = [];
 
     if (messages.length > 0) {
@@ -1774,7 +1779,7 @@ async function executeExportAll() {
     const discussionId = projectIdMatch ? projectIdMatch[2] : Date.now();
     
     // Improved safe title: allow Arabic characters, cleanup multiple underscores, trim length
-    let safeTitle = document.title ? document.title.replace(/[^\u0600-\u06FFa-z0-9]/gi, '_') : 'export';
+    let safeTitle = document.title ? document.title.replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/gi, '_') : 'export';
     safeTitle = safeTitle.replace(/_+/g, '_').replace(/^_+|_+$/g, '').substring(0, 50);
     
     const folderName = `mostaql_export_${discussionId}_${safeTitle}`;
@@ -2097,14 +2102,33 @@ async function executeExportAll() {
         filesToZip.push({ name: `my_proposal.txt`, content: myProposalText });
     }
 
+    const sanitizeFile = (name, fallback) => {
+        if (!name) return fallback;
+        // Allow Arabic characters (0600-06FF), alphanumeric, dots, hyphens, underscores and spaces
+        return name.replace(/[^\u0600-\u06FFa-zA-Z0-9.\-_ ]/g, '_').trim();
+    };
+
+    // 1. Chat attachments
     mediaUrls.forEach((media, index) => {
-        let fileName = media.name || `media_${index}`;
-        fileName = fileName.replace(/[^a-zA-Z0-9.\\-_]/g, '_');
-        filesToZip.push({
-            name: `media/${fileName}`,
-            url: media.url
-        });
+        let fileName = sanitizeFile(media.name, `chat_file_${index}`);
+        filesToZip.push({ name: `chat_attachments/${fileName}`, url: media.url });
     });
+
+    // 2. Client attachments (From project description)
+    if (pData.attachments && pData.attachments.length > 0) {
+        pData.attachments.forEach((file, index) => {
+            let fileName = sanitizeFile(file.name, `client_file_${index}`);
+            filesToZip.push({ name: `client_attachments/${fileName}`, url: file.url });
+        });
+    }
+
+    // 3. Bid attachments (From our proposal)
+    if (propData.attachments && propData.attachments.length > 0) {
+        propData.attachments.forEach((file, index) => {
+            let fileName = sanitizeFile(file.name, `bid_file_${index}`);
+            filesToZip.push({ name: `bid_attachments/${fileName}`, url: file.url });
+        });
+    }
 
     if (chrome.runtime && chrome.runtime.id) {
         return new Promise((resolve) => {
@@ -2165,6 +2189,31 @@ async function extractProjectDetailsFull() {
         }
         data.tagsList = Array.from(allTags);
         data.description = description || "تعذر العثور على وصف تفصيلي.";
+
+        // Special: If we are on the project page, extract bids from the page itself if not fetched externally
+        if (!data.bids) {
+            data.bids = [];
+            const bidElements = document.querySelectorAll('#project-bids .bid');
+            if (bidElements.length > 0) {
+                bidElements.forEach(bid => {
+                    const bidderNameEl = bid.querySelector('.profile__name bdi');
+                    const bidderLinkEl = bid.querySelector('.profile__name a');
+                    const bidderTitleEl = bid.querySelector('.bid__meta .title');
+                    const bidTimeEl = bid.querySelector('.bid__meta .time time');
+                    const bidContentEl = bid.querySelector('.bid__details .text-wrapper-div');
+                    const bidTime = bidTimeEl ? bidTimeEl.getAttribute('datetime') : null;
+                    data.bids.push({
+                        name: bidderNameEl ? bidderNameEl.innerText.trim() : "مجهول",
+                        link: bidderLinkEl ? bidderLinkEl.href : "#",
+                        title: bidderTitleEl ? bidderTitleEl.innerText.trim() : "",
+                        timeRaw: bidTime,
+                        timeText: bidTimeEl ? bidTimeEl.innerText.trim() : "",
+                        timeOffset: null, // Hard to calc without publish date ref on current page easily
+                        content: bidContentEl ? bidContentEl.innerText.trim() : ""
+                    });
+                });
+            }
+        }
 
         let output = `تفاصيل المشروع:\n`;
         output += `العنوان: ${data.title}\n`;
@@ -2262,12 +2311,14 @@ async function fetchDeepProjectData(url) {
             }
         }
 
-        // Description extraction
-        const briefElFinal = doc.querySelector('#project-brief .text-wrapper-div') || 
-                             doc.querySelector('#project-brief') ||
-                             doc.querySelector('.project-description .text-wrapper-div') ||
-                             doc.querySelector('.project-description');
         res.description = briefElFinal ? briefElFinal.innerText.trim() : "";
+
+        // 3. Attachments (Only from project details section)
+        res.attachments = Array.from(doc.querySelectorAll('#projectDetailsTab #project-files-panel .attachment a[href]'))
+            .map(a => ({
+                url: a.href,
+                name: a.getAttribute('title') || a.innerText.trim()
+            }));
 
         // 4. Bids Extraction
         res.bids = [];
@@ -2361,7 +2412,12 @@ function extractMyProposalFull() {
             freelancer: name,
             price: price,
             duration: duration,
-            content: content || "نص العرض غير متوفر"
+            content: content || "نص العرض غير متوفر",
+            attachments: Array.from(targetProposal.querySelectorAll('#bid-attachments .attachment a[href]'))
+                .map(a => ({
+                    url: a.href,
+                    name: a.getAttribute('title') || a.innerText.trim()
+                }))
         };
 
         let output = `عرضي الخاص:\nالمتقدم: ${name}\nالمبلغ: ${price}\nمدة التنفيذ: ${duration}\n\nنص العرض:\n${data.content}\n`;
