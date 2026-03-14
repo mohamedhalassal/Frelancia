@@ -2028,10 +2028,29 @@ async function executeChatExport() {
                 <div class="content-box">${propData.content || "لا يوجد نص"}</div>
             </section>
 
+            ${(pData.bids && pData.bids.length > 0) ? `
+            <section>
+                <h2>4. عروض المستقلين الآخرين (${pData.bids.length})</h2>
+                ${pData.bids.map((bid, bIdx) => `
+                    <div class="info-card" style="margin-bottom: 25px;">
+                        <div class="dsp--f-space-between" style="margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 8px;">
+                            <span style="font-weight: 700; color: var(--primary);">${bIdx + 1}. ${bid.name}</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">${bid.timeText} (${bid.timeOffset || ""})</span>
+                        </div>
+                        <div style="font-size: 13px; margin-bottom: 10px; color: var(--text-muted);">
+                            <i class="fa fa-briefcase"></i> ${bid.title} | 
+                            <a href="${bid.link}" target="_blank" style="color: var(--primary); text-decoration: none;">رابط الملف الشخصي</a>
+                        </div>
+                        <div class="content-box" style="background: #fff; font-size: 13px;">${bid.content}</div>
+                    </div>
+                `).join('')}
+            </section>
+            ` : ''}
+
             <div class="page-break"></div>
 
             <section>
-                <h2>4. سجل المناقشات والرسائل</h2>
+                <h2>${(pData.bids && pData.bids.length > 0) ? '5' : '4'}. سجل المناقشات والرسائل</h2>
                 <div class="chat-container">
                     ${chatData.map(m => `
                         <div class="msg-row ${m.isUs ? 'us' : 'other'}">
@@ -2073,6 +2092,20 @@ async function executeChatExport() {
     filesToZip.push({ name: `chat_log.txt`, content: textOutput });
     filesToZip.push({ name: `chat_log_simple.txt`, content: textOutputNoTime });
     filesToZip.push({ name: `report.html`, content: html });
+
+    if (pData.bids && pData.bids.length > 0) {
+        let bidsTxt = `عروض المستقلين الآخرين لجلسة: ${discussionId}\n`;
+        bidsTxt += `عدد العروض: ${pData.bids.length}\n`;
+        bidsTxt += `==========================================\n\n`;
+        pData.bids.forEach((bid, i) => {
+            bidsTxt += `${i + 1}. ${bid.name} (${bid.title})\n`;
+            bidsTxt += `الرابط: ${bid.link}\n`;
+            bidsTxt += `التوقيت: ${bid.timeText} (${bid.timeOffset || "غير محدد"})\n`;
+            bidsTxt += `نص العرض:\n${bid.content}\n`;
+            bidsTxt += `------------------------------------------\n\n`;
+        });
+        filesToZip.push({ name: `other_bids_details.txt`, content: bidsTxt });
+    }
 
     if (projectDetailsText) {
         filesToZip.push({ name: `project_details.txt`, content: projectDetailsText });
@@ -2174,7 +2207,19 @@ async function extractProjectDetailsFull() {
         output += `مشاريع قيد التنفيذ: ${data.underwayProjects || "0"}\n`;
         output += `التواصلات الجارية: ${data.ongoingCommunications || "0"}\n\n`;
         
-        output += `وصف المشروع:\n${data.description}\n`;
+        output += `وصف المشروع:\n${data.description}\n\n`;
+
+        if (data.bids && data.bids.length > 0) {
+            output += `عروض المستقلين الآخرين (${data.bids.length}):\n`;
+            output += `==========================================\n\n`;
+            data.bids.forEach((bid, i) => {
+                output += `${i + 1}. ${bid.name} (${bid.title})\n`;
+                output += `الرابط: ${bid.link}\n`;
+                output += `التوقيت: ${bid.timeText} (${bid.timeOffset || "غير محدد"})\n`;
+                output += `نص العرض:\n${bid.content}\n`;
+                output += `------------------------------------------\n\n`;
+            });
+        }
 
         return { text: output, data: data };
     } catch (e) {
@@ -2221,6 +2266,8 @@ async function fetchDeepProjectData(url) {
         res.budget = getMetaValue('الميزانية');
         res.duration = getMetaValue('مدة التنفيذ');
         res.publishDate = getMetaValue('تاريخ النشر') || doc.querySelector('time[itemprop="datePublished"]')?.innerText.trim().replace(/\s+/g, ' ');
+        const publishTimeEl = doc.querySelector('time[itemprop="datePublished"]');
+        res.publishDatetime = publishTimeEl ? publishTimeEl.getAttribute('datetime') : null;
         
         // Client data
         const clientCard = doc.querySelector('.profile_card');
@@ -2253,6 +2300,45 @@ async function fetchDeepProjectData(url) {
                              doc.querySelector('.project-description .text-wrapper-div') ||
                              doc.querySelector('.project-description');
         res.description = briefElFinal ? briefElFinal.innerText.trim() : "";
+
+        // 4. Bids Extraction
+        res.bids = [];
+        const bidElements = doc.querySelectorAll('#project-bids .bid');
+        
+        const formatDiff = (start, end) => {
+            if (!start || !end) return null;
+            const d1 = new Date(start.replace(' ', 'T'));
+            const d2 = new Date(end.replace(' ', 'T'));
+            const diffMs = d2 - d1;
+            if (diffMs < 0) return "مباشرة";
+            
+            const diffMins = Math.floor(diffMs / 60000);
+            if (diffMins < 60) return `بعد ${diffMins} دقيقة`;
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours < 24) return `بعد ${diffHours} ساعة`;
+            const diffDays = Math.floor(diffHours / 24);
+            return `بعد ${diffDays} يوم`;
+        };
+
+        bidElements.forEach(bid => {
+            const bidderNameEl = bid.querySelector('.profile__name bdi');
+            const bidderLinkEl = bid.querySelector('.profile__name a');
+            const bidderTitleEl = bid.querySelector('.bid__meta .title');
+            const bidTimeEl = bid.querySelector('.bid__meta .time time');
+            const bidContentEl = bid.querySelector('.bid__details .text-wrapper-div');
+            
+            const bidTime = bidTimeEl ? bidTimeEl.getAttribute('datetime') : null;
+            
+            res.bids.push({
+                name: bidderNameEl ? bidderNameEl.innerText.trim() : "مجهول",
+                link: bidderLinkEl ? bidderLinkEl.href : "#",
+                title: bidderTitleEl ? bidderTitleEl.innerText.trim() : "",
+                timeRaw: bidTime,
+                timeText: bidTimeEl ? bidTimeEl.innerText.trim() : "",
+                timeOffset: formatDiff(res.publishDatetime, bidTime),
+                content: bidContentEl ? bidContentEl.innerText.trim() : ""
+            });
+        });
 
         return res;
     } catch (err) {
