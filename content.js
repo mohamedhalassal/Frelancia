@@ -1712,7 +1712,12 @@ function injectProjectExporter() {
 async function executeExportAll() {
     console.log("Starting export...");
     
-    // Detect Identity based on the very first message found (if any)
+    // Detect My Name for matching in other pages
+    const myName = document.querySelector('.user-menu__name')?.innerText.trim() || 
+                   document.querySelector('#user-menu bdi')?.innerText.trim() || 
+                   "Omar Abbas"; // Fallback
+                   
+    // Detect Identity based on current conversation
     const messages = document.querySelectorAll("#chat-root [id^='message-'], .message-item");
     
     let chatData = [];
@@ -1848,7 +1853,7 @@ async function executeExportAll() {
     console.log("Extracted Chat Data:", chatData);
 
     const projectDetailsResult = await extractProjectDetailsFull();
-    const myProposalResult = extractMyProposalFull();
+    const myProposalResult = extractMyProposalFull(projectDetailsResult?.data);
     
     const projectDetailsText = projectDetailsResult?.text || "";
     const myProposalText = myProposalResult?.text || "";
@@ -2246,12 +2251,22 @@ async function extractProjectDetailsFull() {
         let data = extractProjectData();
         let description = "";
 
-        const projectLinkSelector = "body > div.wrapper.hsoub-container > div > div.page-body > div > div.page-title > div:nth-child(2) > div > div > div > div > a";
-        const projectLinkEl = document.querySelector(projectLinkSelector);
+        const projectLinkSelectors = [
+            "body > div.wrapper.hsoub-container > div > div.page-body > div > div.page-title > div:nth-child(2) > div > div > div > div > a", // User provided
+            "a[href*='/project/']", // Generic fallback
+            ".page-title a[href*='/project/']"
+        ];
+        
+        let projectLinkEl = null;
+        for (const sel of projectLinkSelectors) {
+            projectLinkEl = document.querySelector(sel);
+            if (projectLinkEl && projectLinkEl.href && projectLinkEl.href.includes('/project/')) break;
+        }
         
         if (projectLinkEl && projectLinkEl.href) {
             const externalData = await fetchDeepProjectData(projectLinkEl.href);
             if (externalData) {
+                // If we are on message page, local data is mostly 'Unknown', so merge carefully
                 description = externalData.description;
                 data = { ...data, ...externalData };
             }
@@ -2370,6 +2385,13 @@ async function fetchDeepProjectData(url) {
             return null;
         };
 
+        res.title = doc.querySelector('.heada__title span[data-type="page-header-title"]')?.innerText.trim() || 
+                    doc.querySelector('.page-title h1')?.innerText.trim() || 
+                    doc.title.split('-')[0].trim();
+                    
+        res.category = doc.querySelector('.breadcrumb li:nth-last-child(2) a')?.innerText.trim() || 
+                       doc.querySelector('.project-header__meta a')?.innerText.trim();
+
         res.status = getMetaValue('حالة المشروع') || doc.querySelector('.project-header .label')?.innerText.trim().replace(/\s+/g, ' ');
         res.budget = getMetaValue('الميزانية');
         res.duration = getMetaValue('مدة التنفيذ');
@@ -2389,6 +2411,9 @@ async function fetchDeepProjectData(url) {
                 }
                 return null;
             };
+            res.clientName = clientCard.querySelector('.profile__name')?.innerText.trim() || 
+                             clientCard.querySelector('h3, h4')?.innerText.trim();
+                             
             res.hiringRate = getClientVal('معدل التوظيف');
             res.clientJoined = getClientVal('تاريخ التسجيل');
             res.openProjects = getClientVal('المشاريع المفتوحة');
@@ -2402,6 +2427,12 @@ async function fetchDeepProjectData(url) {
             }
         }
 
+        const briefSelectors = ["#project-brief .text-wrapper-div", ".project-description .text-wrapper-div", "#project-brief", ".pdn--am .text-wrapper-div"];
+        let briefElFinal = null;
+        for (const s of briefSelectors) {
+            briefElFinal = doc.querySelector(s);
+            if (briefElFinal) break;
+        }
         res.description = briefElFinal ? briefElFinal.innerText.trim() : "";
 
         // 3. Attachments (Only from project details section)
@@ -2457,8 +2488,28 @@ async function fetchDeepProjectData(url) {
     }
 }
 
-function extractMyProposalFull() {
+function extractMyProposalFull(externalProjectData = null) {
     try {
+        const myName = document.querySelector('.user-menu__name')?.innerText.trim() || 
+                       document.querySelector('#user-menu bdi')?.innerText.trim() || 
+                       "Omar Abbas";
+
+        // If we have external data (from deep fetch on message page), try to find our bid there
+        if (externalProjectData && externalProjectData.bids) {
+            const myBid = externalProjectData.bids.find(b => b.name && b.name.includes(myName));
+            if (myBid) {
+                const data = {
+                    freelancer: myBid.name,
+                    price: externalProjectData.budget || "-", // Use project budget as fallback if price not explicitly in bid object
+                    duration: externalProjectData.duration || "-",
+                    content: myBid.content || "نص العرض غير متوفر",
+                    attachments: [] // We don't deep fetch attachments for all bids yet
+                };
+                let output = `عرضي الخاص (تم العثور عليه من صفحة المشروع):\nالمتقدم: ${data.freelancer}\nنص العرض:\n${data.content}\n`;
+                return { text: output, data: data };
+            }
+        }
+
         const bidTab = document.querySelector('#bidTab');
         const targetProposal = bidTab?.querySelector('.bid') || 
                                document.querySelector('.proposal-item') || 
