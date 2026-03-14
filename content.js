@@ -1746,7 +1746,11 @@ async function executeChatExport() {
     
     const projectIdMatch = window.location.pathname.match(/\/message\/(\d+)/);
     const discussionId = projectIdMatch ? projectIdMatch[1] : Date.now();
-    const safeTitle = document.title ? document.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'chat';
+    
+    // Improved safe title: allow Arabic characters, cleanup multiple underscores, trim length
+    let safeTitle = document.title ? document.title.replace(/[^\u0600-\u06FFa-z0-9]/gi, '_') : 'chat';
+    safeTitle = safeTitle.replace(/_+/g, '_').replace(/^_+|_+$/g, '').substring(0, 50);
+    
     const folderName = `mostaql_chat_${discussionId}_${safeTitle}`;
 
     const html = `
