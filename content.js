@@ -1828,40 +1828,36 @@ async function executeExportAll() {
             .date-stamp { color: var(--text-muted); font-size: 14px; margin-top: 8px; font-weight: 400; }
 
             section { 
-                margin-bottom: 30px; 
+                margin-bottom: 20px; 
             }
             h2 { 
                 color: var(--text-main); 
-                font-size: 20px; 
+                font-size: 19px; 
                 font-weight: 700;
                 display: flex;
                 align-items: center;
-                gap: 12px;
-                margin-bottom: 20px;
+                gap: 10px;
+                margin-bottom: 12px;
             }
             h2::before {
                 content: '';
-                display: inline-block;
-                width: 6px;
-                height: 22px;
-                background: var(--primary);
-                border-radius: 4px;
+                display: none;
             }
 
-            h3 { font-size: 16px; color: var(--primary); margin: 25px 0 12px; font-weight: 600; }
+            h3 { font-size: 15px; color: var(--primary); margin: 15px 0 8px; font-weight: 600; }
             
             .info-card { 
                 background: #fbfcfd; 
                 border: 1px solid var(--border-color); 
                 border-radius: var(--radius); 
-                padding: 20px;
-                margin-bottom: 15px;
+                padding: 12px 16px;
+                margin-bottom: 12px;
             }
 
             .info-grid { 
                 display: grid; 
                 grid-template-columns: repeat(2, 1fr); 
-                gap: 15px; 
+                gap: 8px 12px; 
             }
             .info-grid.col-3 { 
                 grid-template-columns: repeat(3, 1fr); 
@@ -1869,23 +1865,23 @@ async function executeExportAll() {
             .info-item { 
                 display: flex; 
                 flex-direction: column; 
-                padding: 8px;
-                border-bottom: 1px solid #f1f5f9;
+                padding: 3px 5px;
+                border-bottom: 1px solid #f8fafc;
             }
             .info-item.full-width {
                 grid-column: 1 / -1;
             }
-            .info-label { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 2px; }
-            .info-value { font-size: 15px; color: var(--text-main); font-weight: 700; }
+            .info-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 1px; }
+            .info-value { font-size: 13.5px; color: var(--text-main); font-weight: 700; }
 
             .content-box { 
                 background: #fff; 
                 border: 1px solid var(--border-color); 
-                padding: 20px; 
+                padding: 15px; 
                 border-radius: var(--radius); 
                 white-space: pre-wrap; 
-                font-size: 14px; 
-                line-height: 1.6;
+                font-size: 13.5px; 
+                line-height: 1.5;
                 color: #334155;
             }
             
