@@ -2176,18 +2176,6 @@ async function extractProjectDetailsFull() {
         
         output += `وصف المشروع:\n${data.description}\n\n`;
 
-        if (data.bids && data.bids.length > 0) {
-            output += `عروض المستقلين الآخرين (${data.bids.length}):\n`;
-            output += `==========================================\n\n`;
-            data.bids.forEach((bid, i) => {
-                output += `${i + 1}. ${bid.name} (${bid.title})\n`;
-                output += `الرابط: ${bid.link}\n`;
-                output += `التوقيت: ${bid.timeText} (${bid.timeOffset || "غير محدد"})\n`;
-                output += `نص العرض:\n${bid.content}\n`;
-                output += `------------------------------------------\n\n`;
-            });
-        }
-
         return { text: output, data: data };
     } catch (e) {
         console.error("Error extracting project details:", e);
