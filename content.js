@@ -1734,6 +1734,20 @@ async function executeExportAll() {
             const imageElements = msg.querySelectorAll('.single-image-container a[href]');
             imageElements.forEach(processLink);
 
+            const audioElements = msg.querySelectorAll('audio');
+            audioElements.forEach(audio => {
+                const url = audio.src;
+                if (url) {
+                    const filename = getFilenameFromUrl(url);
+                    if (!attachments.find(a => a.url === url)) {
+                        attachments.push({ url, name: filename });
+                    }
+                    if (!mediaUrls.find(m => m.url === url)) {
+                        mediaUrls.push({ url, name: filename });
+                    }
+                }
+            });
+
             if (text || attachments.length > 0) {
                 chatData.push({
                     senderName,
@@ -2040,9 +2054,11 @@ async function executeExportAll() {
                                 
                                 ${m.attachments.map(a => {
                                     const isImg = a.name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                                    const isAudio = a.name.match(/\.(mp3|wav|ogg|m4a|aac)$/i);
                                     return `
                                         <div class="attachment-preview">
                                             ${isImg ? `<img src="${a.url}" alt="${a.name}" onerror="this.style.display='none'">` : ''}
+                                            ${isAudio ? `<audio controls src="${a.url}" style="width: 100%; margin-top: 10px; border-radius: 8px; background: #f1f5f9;"></audio>` : ''}
                                             <a href="${a.url}" target="_blank" class="attach-link">
                                                 <i class="fa fa-paperclip"></i> ${a.name}
                                             </a>
