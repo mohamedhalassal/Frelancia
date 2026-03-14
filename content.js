@@ -1951,6 +1951,12 @@ async function executeExportAll() {
                 border-radius: 8px;
             }
 
+            .container { counter-reset: section; }
+            section h2::before {
+                counter-increment: section;
+                content: counter(section) ". ";
+            }
+
             .page-break { page-break-before: always; }
             
             @media print {
@@ -1971,7 +1977,7 @@ async function executeExportAll() {
             </header>
 
             <section>
-                <h2>1. وصف وتفاصيل المشروع</h2>
+                <h2>وصف وتفاصيل المشروع</h2>
                 <div class="info-card">
                     <div class="info-grid">
                         <div class="info-item full-width"><span class="info-label">اسم المشروع</span><span class="info-value">${pData.title || "-"}</span></div>
@@ -1992,7 +1998,7 @@ async function executeExportAll() {
             </section>
 
             <section>
-                <h2>2. معلومات صاحب العمل</h2>
+                <h2>معلومات صاحب العمل</h2>
                 <div class="info-card">
                     <div class="info-grid col-3">
                         <div class="info-item"><span class="info-label">اسم صاحب المشروع</span><span class="info-value">${pData.clientName || "-"}</span></div>
@@ -2007,8 +2013,9 @@ async function executeExportAll() {
                 </div>
             </section>
 
+            ${(propData && ((propData.price && propData.price !== '-') || (propData.duration && propData.duration !== '-'))) ? `
             <section>
-                <h2>3. العرض والاتفاق المالي</h2>
+                <h2>العرض والاتفاق المالي</h2>
                 <div class="info-card">
                     <div class="info-grid col-3">
                         <div class="info-item"><span class="info-label">المقدم</span><span class="info-value">${propData.freelancer || "-"}</span></div>
@@ -2019,12 +2026,12 @@ async function executeExportAll() {
                 <h3>نص العرض المقدم:</h3>
                 <div class="content-box">${propData.content || "لا يوجد نص"}</div>
             </section>
+            ` : ''}
 
-
+            ${(chatData && chatData.length > 0) ? `
             <div class="page-break"></div>
-
             <section>
-                <h2>4. سجل المناقشات والرسائل</h2>
+                <h2>سجل المناقشات والرسائل</h2>
                 <div class="chat-container">
                     ${chatData.map(m => `
                         <div class="msg-row ${m.isUs ? 'us' : 'other'}">
@@ -2053,6 +2060,7 @@ async function executeExportAll() {
                     `).join('')}
                 </div>
             </section>
+            ` : ''}
             
             <button class="no-print" onclick="window.print()" style="position:fixed; bottom:40px; left:40px; padding: 20px 40px; background: var(--primary); color:#fff; border:none; border-radius: 50px; cursor:pointer; font-family: 'Cairo', sans-serif; font-weight:700; font-size:18px; box-shadow: 0 10px 25px rgba(35, 134, 200, 0.4); display: flex; align-items: center; gap: 12px; transition: all 0.2s;">
                 <i class="fa fa-file-pdf-o"></i> حفظ وحفظ كـ PDF
