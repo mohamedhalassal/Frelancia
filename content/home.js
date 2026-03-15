@@ -13,8 +13,24 @@ function injectDashboardStats() {
 
     const box = document.createElement('div');
     box.id = 'mostaql-msg-tools';
-    box.className = 'mostaql-ext-sidebar-container';
-    box.innerHTML = '';
+    box.innerHTML = `
+        <div class="panel panel-default" style="margin:0 0 10px 0;">
+            <div class="heada">
+                <h2 class="heada__title pull-right vcenter" style="font-size:13px;">
+                    <i class="fa fa-fw fa-plug" style="color:#2386c8;"></i>
+                    أدوات فرلانسيا
+                </h2>
+                <div class="clearfix"></div>
+            </div>
+            <div style="padding:10px 15px 12px; display:flex; gap:8px;">
+                <button id="frelancia-show-analytics-btn" class="btn btn-sm btn-primary" style="flex:1;">
+                    <i class="fa fa-bar-chart"></i> التحليلات
+                </button>
+                <button id="frelancia-show-monitored-btn" class="btn btn-sm btn-default" style="flex:1;">
+                    <i class="fa fa-eye"></i> المراقَبة
+                </button>
+            </div>
+        </div>`;
     target.prepend(box);
 
     [
@@ -35,7 +51,162 @@ function injectDashboardStats() {
         });
     });
 
-    _loadBidStats();
+    _injectAnalyticsModal();
+    _injectMonitoredModal();
+
+    document.getElementById('frelancia-show-analytics-btn').addEventListener('click', _openAnalyticsModal);
+    document.getElementById('frelancia-show-monitored-btn').addEventListener('click', _openMonitoredModal);
+}
+
+function _injectAnalyticsModal() {
+    if (document.getElementById('frelancia-analytics-modal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'frelancia-analytics-modal';
+    modal.style.cssText = `
+        display: none; position: fixed; top: 0; left: 0;
+        width: 100%; height: 100%; z-index: 99999;
+        background: rgba(0,0,0,0.55); overflow-y: auto;
+    `;
+    modal.innerHTML = `
+        <div style="background:#fff; max-width:980px; margin:40px auto; border-radius:8px;
+                    padding:28px; position:relative; direction:rtl; box-shadow:0 8px 40px rgba(0,0,0,0.18);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:14px;">
+                <h3 style="margin:0; font-size:18px; font-weight:600;">
+                    <i class="fa fa-bar-chart" style="color:#2386c8; margin-left:8px;"></i>
+                    تحليلات العروض
+                </h3>
+                <button id="frelancia-analytics-close"
+                        style="background:none; border:none; font-size:24px; cursor:pointer; color:#888; line-height:1; padding:0 4px;">
+                    &times;
+                </button>
+            </div>
+            <div id="frelancia-analytics-modal-body">
+                <div style="text-align:center; padding:50px; color:#999;">
+                    <i class="fa fa-spinner fa-spin fa-2x"></i>
+                    <p style="margin-top:14px; font-size:15px;">جاري تحميل التحليلات...</p>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('frelancia-analytics-close').addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+    });
+}
+
+function _openAnalyticsModal() {
+    const modal = document.getElementById('frelancia-analytics-modal');
+    if (!modal) return;
+    modal.style.display = 'block';
+
+    if (!window._frelanciaStatsLoaded) {
+        window._frelanciaStatsLoaded = true;
+        _loadBidStats();
+    }
+}
+
+function _injectMonitoredModal() {
+    if (document.getElementById('frelancia-monitored-modal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'frelancia-monitored-modal';
+    modal.style.cssText = `
+        display: none; position: fixed; top: 0; left: 0;
+        width: 100%; height: 100%; z-index: 99999;
+        background: rgba(0,0,0,0.55); overflow-y: auto;
+    `;
+    modal.innerHTML = `
+        <div style="background:#fff; max-width:780px; margin:40px auto; border-radius:8px;
+                    padding:28px; position:relative; direction:rtl; box-shadow:0 8px 40px rgba(0,0,0,0.18);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:14px;">
+                <h3 style="margin:0; font-size:18px; font-weight:600;">
+                    <i class="fa fa-fw fa-eye" style="color:#2386c8; margin-left:8px;"></i>
+                    المشاريع المراقبة
+                </h3>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button id="frelancia-monitored-refresh"
+                            class="btn btn-xs btn-default">
+                        <i class="fa fa-refresh"></i> تحديث
+                    </button>
+                    <button id="frelancia-monitored-close"
+                            style="background:none; border:none; font-size:24px; cursor:pointer; color:#888; line-height:1; padding:0 4px;">
+                        &times;
+                    </button>
+                </div>
+            </div>
+            <div id="frelancia-monitored-modal-body">
+                <div style="text-align:center; padding:50px; color:#999;">
+                    <i class="fa fa-spinner fa-spin fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('frelancia-monitored-close').addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+    document.getElementById('frelancia-monitored-refresh').addEventListener('click', () => {
+        _loadMonitoredData();
+    });
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+    });
+}
+
+function _openMonitoredModal() {
+    const modal = document.getElementById('frelancia-monitored-modal');
+    if (!modal) return;
+    modal.style.display = 'block';
+    _loadMonitoredData();
+}
+
+function _loadMonitoredData() {
+    const listEl = document.getElementById('frelancia-monitored-modal-body');
+    if (!listEl) return;
+
+    listEl.innerHTML = `<div style="text-align:center; padding:40px; color:#999;"><i class="fa fa-spinner fa-spin fa-2x"></i></div>`;
+
+    chrome.storage.local.get(['trackedProjects'], (data) => {
+        if (chrome.runtime.lastError) return;
+
+        const tracked = data.trackedProjects || {};
+        const jobs = Object.values(tracked)
+            .sort((a, b) => (b.lastChecked || '').localeCompare(a.lastChecked || ''));
+
+        if (jobs.length === 0) {
+            listEl.innerHTML = `
+                <div class="list-group-item" style="padding:30px; text-align:center; color:#888; border:none;">
+                    لا توجد مشاريع مراقبة. افتح أي مشروع واضغط <strong>مراقبة</strong> لإضافته.
+                </div>`;
+            return;
+        }
+
+        listEl.innerHTML = `<div class="panel-listing">` + jobs.map(job => {
+            const poster   = job.clientName   ? `<li><span class="text-muted"><i class="fa fa-fw fa-user"></i> ${job.clientName}</span></li>` : '';
+            const timeAgo  = job.publishDate  ? `<li><span class="text-muted"><i class="fa fa-fw fa-clock-o"></i> ${job.publishDate}</span></li>` : '';
+            const bids     = job.communications ? `<li><span class="text-muted"><i class="fa fa-fw fa-handshake-o"></i> ${job.communications} تواصل</span></li>` : '';
+            const budget   = (job.budget && job.budget !== 'غير محدد') ? `<li><span class="text-muted"><i class="fa fa-fw fa-money"></i> ${job.budget}</span></li>` : '';
+            const status   = job.status || 'مفتوح';
+            let statusCls  = 'label-prj-open';
+            if (status.includes('تنفيذ') || status.includes('جارٍ')) statusCls = 'label-prj-processing';
+            if (status.includes('مغلق') || status.includes('مكتمل') || status.includes('ملغى')) statusCls = 'label-prj-closed';
+            const meta = [poster, timeAgo, bids, budget].filter(Boolean).join('');
+            return `
+                <div class="list-group-item brd--b mrg--an">
+                    <h5 class="listing__title project__title mrg--bt-reset">
+                        <a href="${job.url}" target="_blank">${job.title || 'بدون عنوان'}</a>
+                        <span class="label ${statusCls}" style="font-size:10px; margin-right:6px;">${status}</span>
+                    </h5>
+                    ${meta ? `<ul class="project__meta list-meta text-zeta clr-gray-dark">${meta}</ul>` : ''}
+                </div>`;
+        }).join('') + `</div>`;
+    });
 }
 
 function _extractBidRow(renderedHtml) {
@@ -298,33 +469,15 @@ function _renderBidStats(stats) {
         countdownsHtml += `</div>`;
     }
 
-    const target = document.querySelector('#project-states');
-    if (!target) return;
+    const modalBody = document.getElementById('frelancia-analytics-modal-body');
+    if (!modalBody) return;
 
-    const existing = document.getElementById('mostaql-bid-stats');
-    if (existing) existing.remove();
-    const existingSlotsRow = document.getElementById('mostaql-bid-slots-row');
-    if (existingSlotsRow) existingSlotsRow.remove();
-
-    const firstNativeRow = target.querySelector('.row');
-    if (firstNativeRow) {
-        firstNativeRow.insertAdjacentHTML('beforebegin', `
-            <div class="row" id="mostaql-bid-stats" style="margin-bottom:20px; display: flex; align-items: flex-start;">
-                ${overallColumn}${last30Column}${todayColumn}
-            </div>`);
-        if (countdownsHtml) {
-            firstNativeRow.insertAdjacentHTML('afterend', `<div id="mostaql-bid-slots-row">${countdownsHtml}</div>`);
-        }
-    } else {
-        const box = document.getElementById('mostaql-msg-tools');
-        if (box) {
-            box.insertAdjacentHTML('afterend', `
-                <div class="row" id="mostaql-bid-stats" style="display: flex; align-items: flex-start;">
-                    ${overallColumn}${last30Column}${todayColumn}
-                </div>
-                ${countdownsHtml ? `<div id="mostaql-bid-slots-row">${countdownsHtml}</div>` : ''}`);
-        }
-    }
+    modalBody.innerHTML = `
+        <div class="row" style="margin-bottom:20px; display:flex; align-items:flex-start;">
+            ${overallColumn}${last30Column}${todayColumn}
+        </div>
+        ${countdownsHtml ? `<div>${countdownsHtml}</div>` : ''}
+    `;
 
     _startSlotCountdowns();
 }
@@ -383,76 +536,5 @@ async function _loadBidStats() {
 }
 
 function injectMonitoredProjects() {
-    const anchorPanel = document.querySelector('#dashboard__latest-published-panel');
-    if (!anchorPanel) return;
-
-    if (document.getElementById('frelancia-monitored-panel')) return;
-    if (!isContextValid()) return;
-
-    const panel = document.createElement('div');
-    panel.id = 'frelancia-monitored-panel';
-    panel.className = 'panel panel-default mrg--bm';
-    panel.innerHTML = `
-        <div class="heada">
-            <h2 class="heada__title pull-right vcenter">
-                <a href="javascript:void(0)" class="dsp--b clr-gray-dark" style="cursor:default;">
-                    <i class="fa fa-fw fa-eye" style="color:#2386c8;"></i>
-                    المشاريع المراقبة
-                    <span style="font-size:12px; font-weight:400; color:#999; margin-right:8px;">آخر 7 مشاريع</span>
-                </a>
-            </h2>
-            <div class="pull-left">
-                <button id="frelancia-refresh-monitored" class="btn btn-xs btn-default" style="margin-top:12px;">
-                    <i class="fa fa-refresh"></i>
-                </button>
-            </div>
-        </div>
-        <div class="carda__body collapse in panel-listing">
-            <div class="row panel-list" id="frelancia-monitored-list">
-                <div style="padding:20px; text-align:center; color:#999;"><i class="fa fa-spinner fa-spin"></i></div>
-            </div>
-        </div>`;
-
-    anchorPanel.insertAdjacentElement('afterend', panel);
-
-    chrome.storage.local.get(['trackedProjects'], (data) => {
-        if (chrome.runtime.lastError) return;
-        const listEl = document.getElementById('frelancia-monitored-list');
-        if (!listEl) return;
-
-        const tracked = data.trackedProjects || {};
-        const jobs = Object.values(tracked)
-            .sort((a, b) => (b.lastChecked || '').localeCompare(a.lastChecked || ''))
-            .slice(0, 7);
-
-        if (jobs.length === 0) {
-            listEl.innerHTML = `<div class="list-group-item mrg--an" style="padding:20px; text-align:center; color:#888;">لا توجد مشاريع مراقبة. افتح أي مشروع واضغط <strong>مراقبة</strong> لإضافته.</div>`;
-            return;
-        }
-
-        listEl.innerHTML = jobs.map(job => {
-            const poster = job.clientName ? `<span class="text-muted"><i class="fa fa-fw fa-user"></i> ${job.clientName}</span>` : '';
-            const timeAgo = job.publishDate ? `<span class="text-muted"><i class="fa fa-fw fa-clock-o"></i> ${job.publishDate}</span>` : '';
-            const bids = job.communications ? `<span class="text-muted"><i class="fa fa-fw fa-handshake-o"></i> ${job.communications} تواصل</span>` : '';
-            const budget = (job.budget && job.budget !== 'غير محدد') ? `<span class="text-muted"><i class="fa fa-fw fa-money"></i> ${job.budget}</span>` : '';
-            const status = job.status || 'مفتوح';
-            let statusCls = 'label-prj-open';
-            if (status.includes('تنفيذ') || status.includes('جارٍ')) statusCls = 'label-prj-processing';
-            if (status.includes('مغلق') || status.includes('مكتمل') || status.includes('ملغى')) statusCls = 'label-prj-closed';
-            const metaItems = [poster, timeAgo, bids, budget].filter(Boolean).map(m => `<li>${m}</li>`).join('');
-            return `
-            <div class="list-group-item brd--b mrg--an">
-                <h5 class="listing__title project__title mrg--bt-reset">
-                    <a href="${job.url}" target="_blank">${job.title || 'بدون عنوان'}</a>
-                    <span class="label ${statusCls}" style="font-size:10px; margin-right:6px;">${status}</span>
-                </h5>
-                ${metaItems ? `<ul class="project__meta list-meta text-zeta clr-gray-dark">${metaItems}</ul>` : ''}
-            </div>`;
-        }).join('');
-    });
-
-    panel.querySelector('#frelancia-refresh-monitored').addEventListener('click', () => {
-        panel.remove();
-        injectMonitoredProjects();
-    });
+    _injectMonitoredModal();
 }
