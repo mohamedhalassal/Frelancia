@@ -164,6 +164,16 @@ function parseProjectDetails(html) {
 }
 
 async function playNotificationSound() {
+  const audio = document.getElementById('notificationSound');
+  if (audio) {
+    audio.currentTime = 0;
+    try {
+      await audio.play();
+      return;
+    } catch (e) {
+      console.warn('Audio element playback failed, falling back to Web Audio API:', e);
+    }
+  }
   await playBeep();
 }
 
