@@ -730,30 +730,34 @@ function extractProjectData() {
 function getProjectDescription() {
     let description = '';
 
-    // 1. Main brief/description paragraph
-    const briefElement = document.querySelector('#project-brief .text-wrapper-div, #projectDetailsTab > .pdn--am > .text-wrapper-div');
-    if (briefElement) {
-        description += briefElement.innerText.trim() + '\n\n';
+    // Target the main container
+    const container = document.querySelector('#projectDetailsTab') || document.querySelector('#project-brief');
+    if (!container) return '';
+
+    // 1. Main brief/description paragraph (usually carda__content or first text-wrapper-div)
+    const mainText = container.querySelector('.carda__content, .text-wrapper-div:not(.field-label)');
+    if (mainText) {
+        description += mainText.innerText.trim() + '\n\n';
     }
 
-    // 2. Extract structured fields (Channels, Required delivery, etc.)
-    const detailRows = document.querySelectorAll('#projectDetailsTab .row > div');
+    // 2. Structured fields
+    const detailRows = container.querySelectorAll('.pdn--ts, .row > div');
     detailRows.forEach(row => {
         const label = row.querySelector('.field-label')?.textContent.trim();
         const value = row.querySelector('.text-wrapper-div:not(.field-label)')?.textContent.trim();
 
-        if (label && value) {
+        if (label && value && label !== value) {
             description += `${label}: ${value}\n`;
         }
     });
 
-    // 3. Fallback: If nothing found yet, just grab all content in the project body
+    // 3. Fallback: If still empty, grab everything
     if (!description.trim()) {
-        const fallbackElement = document.getElementById('projectDetailsTab');
-        if (fallbackElement) {
-            description = fallbackElement.innerText.trim();
-        }
+        description = container.innerText.trim();
     }
+
+    // 4. Include URL
+    description += `\nرابط المشروع: ${window.location.href}`;
 
     return description.trim();
 }
@@ -2163,6 +2167,35 @@ async function executeExportAll() {
 
     const filesToZip = [];
     
+    let hasAttachments = (pData.attachments && pData.attachments.length > 0) || 
+                         (mediaUrls && mediaUrls.length > 0) || 
+                         (propData.attachments && propData.attachments.length > 0);
+
+    if (hasAttachments) {
+        let attachmentsListTxt = "قائمة بجميع المرفقات والروابط المكتشفة\n";
+        attachmentsListTxt += "==========================================\n\n";
+
+        if (pData.attachments && pData.attachments.length > 0) {
+            attachmentsListTxt += "--- ملفات ومرفقات المشروع ---\n";
+            pData.attachments.forEach(a => attachmentsListTxt += `${a.name}: ${a.url}\n`);
+            attachmentsListTxt += "\n";
+        }
+
+        if (mediaUrls && mediaUrls.length > 0) {
+            attachmentsListTxt += "--- ملفات ومرفقات المحادثة ---\n";
+            mediaUrls.forEach(a => attachmentsListTxt += `${a.name}: ${a.url}\n`);
+            attachmentsListTxt += "\n";
+        }
+
+        if (propData.attachments && propData.attachments.length > 0) {
+            attachmentsListTxt += "--- ملفات ومرفقات عرضي ---\n";
+            propData.attachments.forEach(a => attachmentsListTxt += `${a.name}: ${a.url}\n`);
+            attachmentsListTxt += "\n";
+        }
+
+        filesToZip.push({ name: `all_attachments_links.txt`, content: attachmentsListTxt });
+    }
+
     if (chatData && chatData.length > 0) {
         filesToZip.push({ name: `chat_log.txt`, content: textOutput });
         filesToZip.push({ name: `chat_log_simple.txt`, content: textOutputNoTime });
@@ -2267,17 +2300,7 @@ async function extractProjectDetailsFull() {
         }
 
         if (!description) {
-            const descriptionSelectors = ["#project-brief .text-wrapper-div", ".project-description .text-wrapper-div", "#project-brief"];
-            for (const selector of descriptionSelectors) {
-                const el = document.querySelector(selector);
-                if (el) {
-                    const text = el.innerText.trim();
-                    if (text.length > 50 && !text.includes("عرض المشروع")) {
-                        description = text;
-                        break;
-                    }
-                }
-            }
+            description = getProjectDescription();
         }
 
         const allTags = new Set();
@@ -2317,6 +2340,7 @@ async function extractProjectDetailsFull() {
 
         let output = `تفاصيل المشروع:\n`;
         output += `العنوان: ${data.title}\n`;
+        output += `الرابط: ${data.url}\n`;
         output += `الحالة: ${data.status}\n`;
         output += `الميزانية: ${data.budget}\n`;
         output += `مدة التنفيذ: ${data.duration}\n`;
@@ -2421,13 +2445,22 @@ async function fetchDeepProjectData(url) {
             }
         }
 
-        const briefSelectors = ["#project-brief .text-wrapper-div", ".project-description .text-wrapper-div", "#project-brief", ".pdn--am .text-wrapper-div"];
-        let briefElFinal = null;
-        for (const s of briefSelectors) {
-            briefElFinal = doc.querySelector(s);
-            if (briefElFinal) break;
+        const container = doc.querySelector('#projectDetailsTab') || doc.querySelector('#project-brief');
+        let fullDesc = "";
+        if (container) {
+            const mainText = container.querySelector('.carda__content, .text-wrapper-div:not(.field-label)');
+            if (mainText) fullDesc += mainText.innerText.trim() + '\n\n';
+
+            const detailRows = container.querySelectorAll('.pdn--ts, .row > div');
+            detailRows.forEach(row => {
+                const label = row.querySelector('.field-label')?.textContent.trim();
+                const value = row.querySelector('.text-wrapper-div:not(.field-label)')?.textContent.trim();
+                if (label && value && label !== value) fullDesc += `${label}: ${value}\n`;
+            });
+
+            if (!fullDesc.trim()) fullDesc = container.innerText.trim();
         }
-        res.description = briefElFinal ? briefElFinal.innerText.trim() : "";
+        res.description = fullDesc.trim() || "تعذر العثور على وصف تفصيلي.";
 
         // 3. Attachments (Only from project details section)
         res.attachments = Array.from(doc.querySelectorAll('#projectDetailsTab #project-files-panel .attachment a[href]'))
