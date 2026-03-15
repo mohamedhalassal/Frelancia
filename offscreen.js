@@ -5,10 +5,10 @@
 // Listen for messages
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log(`Offscreen: Received action: ${message.action}`);
-  
+
   if (message.action === 'playSound') {
-    playNotificationSound();
-    sendResponse({ success: true });
+    playNotificationSound().then(() => sendResponse({ success: true }));
+    return true;
   } else if (message.action === 'parseJobs') {
     const jobs = parseMostaqlHTML(message.html);
     sendResponse({ success: true, jobs: jobs });
@@ -16,8 +16,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const data = parseProjectDetails(message.html);
     sendResponse({ success: true, data: data });
   } else if (message.action === 'playTrackedSound') {
-    playTrackedSound();
-    sendResponse({ success: true });
+    playTrackedSound().then(() => sendResponse({ success: true }));
+    return true;
   }
 });
 
@@ -163,33 +163,39 @@ function parseProjectDetails(html) {
     return { status, communications, hiringRate, description, duration, budget, registrationDate };
 }
 
-function playNotificationSound() {
-  playBeep();
+async function playNotificationSound() {
+  await playBeep();
 }
 
 // Create a notification sound using Web Audio API (as fallback)
-function playBeep() {
+async function playBeep() {
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+
     // Basic notification: two beeps (low then high)
     playTone(audioContext, 800, 0, 0.15);
     playTone(audioContext, 1000, 0.2, 0.15);
-    
+
   } catch (error) {
     console.error('Error playing beep:', error);
   }
 }
 
-function playTrackedSound() {
+async function playTrackedSound() {
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+
     // Tracked update: 三 sequence of beeps (high-high-low) or distinct pattern
     playTone(audioContext, 1200, 0, 0.1);
     playTone(audioContext, 1200, 0.15, 0.1);
     playTone(audioContext, 1500, 0.3, 0.2);
-    
+
   } catch (error) {
     console.error('Error playing tracked sound:', error);
   }

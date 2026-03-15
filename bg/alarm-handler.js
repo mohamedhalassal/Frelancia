@@ -1,0 +1,42 @@
+// ==========================================
+// bg/alarm-handler.js — Chrome alarms listener
+// Depends on: signalr.js, job-checker.js, tracker.js, constants.js
+// ==========================================
+
+/* global signalRClient */
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'checkJobs') {
+    const data = await chrome.storage.local.get(['settings']);
+    const notificationMode = (data.settings || {}).notificationMode || 'auto';
+
+    checkTrackedProjects();
+
+    if (notificationMode === 'polling') {
+      console.log('📡 Notification mode: polling — checking for new jobs');
+      checkForNewJobs();
+
+    } else if (notificationMode === 'signalr') {
+      await initializeSignalR();
+
+    } else {
+      await initializeSignalR();
+
+      const isSignalRActive = SIGNALR_AVAILABLE
+        && typeof signalRClient !== 'undefined'
+        && signalRClient.isConnected;
+
+      if (!isSignalRActive) {
+        console.log('⚠️ SignalR not connected, using polling fallback for new jobs');
+        checkForNewJobs();
+      }
+    }
+  }
+
+  if (alarm.name === 'signalRReconnect') {
+    console.log('SignalR: Reconnect alarm fired, attempting to reconnect...');
+    if (SIGNALR_AVAILABLE && typeof signalRClient !== 'undefined') {
+      signalRClient.connect();
+    }
+  }
+});
