@@ -22,7 +22,15 @@
         "https://mostaql.com/*"
       ],
       "js": [
-        "content.js"
+        "content/utils.js",
+        "content/data.js",
+        "content/prompts.js",
+        "content/autofill.js",
+        "content/project-sidebar.js",
+        "content/export.js",
+        "content/home.js",
+        "content/profile.js",
+        "content/init.js"
       ],
       "css": [
         "content.css"

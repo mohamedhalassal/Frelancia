@@ -364,6 +364,11 @@
                                 <strong>استعلام دوري:</strong> يفحص الموقع كل فترة زمنية محددة.
                             </p>
                         </div>
+                        <div class="form-group">
+                            <label>رابط سيرفر SignalR المخصص</label>
+                            <input type="text" id="signalrServerUrl" class="form-control" placeholder="https://frelancia.runasp.net/jobNotificationHub" dir="ltr">
+                            <p class="help-text">اتركه فارغاً لاستخدام السيرفر الافتراضي. يُطبَّق عند الحفظ ويُعاد الاتصال تلقائياً.</p>
+                        </div>
                     </div>
 
                     <div class="settings-section">
@@ -535,7 +540,23 @@
         </div>
     </div>
 
-    <script src="dashboard-bids.js"></script>
-    <script src="dashboard.js"></script>
+    <!-- dashboard-bids modules (load order matters) -->
+    <script src="dashboard-bids/constants.js"></script>
+    <script src="dashboard-bids/api.js"></script>
+    <script src="dashboard-bids/data.js"></script>
+    <script src="dashboard-bids/homepage-stats.js"></script>
+    <script src="dashboard-bids/render.js"></script>
+    <script src="dashboard-bids/timers.js"></script>
+    <script src="dashboard-bids/ui-state.js"></script>
+    <script src="dashboard-bids/init.js"></script>
+    <!-- dashboard modules (load order matters) -->
+    <script src="dashboard/connection.js"></script>
+    <script src="dashboard/tabs.js"></script>
+    <script src="dashboard/projects.js"></script>
+    <script src="dashboard/prompts.js"></script>
+    <script src="dashboard/settings.js"></script>
+    <script src="dashboard/contributors.js"></script>
+    <script src="dashboard/events.js"></script>
+    <script src="dashboard/init.js"></script>
 </body>
 </html>
