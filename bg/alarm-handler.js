@@ -35,8 +35,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
   if (alarm.name === 'signalRReconnect') {
     console.log('SignalR: Reconnect alarm fired, attempting to reconnect...');
-    if (SIGNALR_AVAILABLE && typeof signalRClient !== 'undefined') {
-      signalRClient.connect();
+    const d = await chrome.storage.local.get(['settings']);
+    const mode = (d.settings || {}).notificationMode || 'auto';
+    if (mode !== 'polling') {
+      await initializeSignalR();
     }
   }
 });

@@ -84,11 +84,16 @@ class SignalRClient {
      * Register all SignalR event handlers.
      */
     registerEventHandlers() {
+        // Capture reference to THIS connection so stale handlers from old
+        // connections don't bleed state into a newly-established connection.
+        const conn = this.connection;
+
         this.connection.on('Connected', (data) => {
             console.log('SignalR: Connection confirmed', data);
         });
 
         this.connection.on('NewJobsDetected', async (data) => {
+            if (this.connection !== conn) return; // stale — ignore
             console.log('SignalR: New jobs detected', data);
 
             if (!data || !Array.isArray(data.jobs)) {
@@ -108,18 +113,21 @@ class SignalRClient {
         });
 
         this.connection.onclose((error) => {
+            if (this.connection !== conn) return; // stale — new connection already active
             console.log('SignalR: Connection closed', error);
             this.isConnected = false;
             chrome.storage.local.set({ signalRConnected: false });
         });
 
         this.connection.onreconnecting((error) => {
+            if (this.connection !== conn) return; // stale
             console.log('SignalR: Reconnecting...', error);
             this.isConnected = false;
             chrome.storage.local.set({ signalRConnected: false });
         });
 
         this.connection.onreconnected((connectionId) => {
+            if (this.connection !== conn) return; // stale
             console.log('SignalR: Reconnected', connectionId);
             this.isConnected = true;
             chrome.storage.local.set({
@@ -262,15 +270,21 @@ class SignalRClient {
      * Disconnect from the hub.
      */
     async disconnect() {
-        if (this.connection) {
-            try {
-                await this.connection.stop();
-                console.log('SignalR: Disconnected');
-            } catch (error) {
-                console.error('SignalR: Error disconnecting', error);
-            }
-        }
+        if (!this.connection) return;
+
+        // Null this.connection FIRST so any in-flight onclose/onreconnecting
+        // callbacks triggered by stop() see a null reference and bail out.
+        const conn = this.connection;
+        this.connection = null;
         this.isConnected = false;
+
+        try {
+            await conn.stop();
+            console.log('SignalR: Disconnected');
+        } catch (error) {
+            console.error('SignalR: Error disconnecting', error);
+        }
+
         await chrome.storage.local.set({ signalRConnected: false });
     }
 
