@@ -32,7 +32,9 @@ function saveAllSettings() {
     chrome.storage.local.set({ settings, proposalTemplate }, () => {
         showSaveStatus();
         chrome.runtime.sendMessage({ action: 'updateAlarm', interval: settings.interval });
-        if (settings.notificationMode !== 'polling') {
+        if (settings.notificationMode === 'polling') {
+            chrome.runtime.sendMessage({ action: 'disconnectSignalR' });
+        } else {
             chrome.runtime.sendMessage({ action: 'reconnectSignalR' });
         }
     });
