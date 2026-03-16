@@ -47,13 +47,12 @@ async function reconnectSignalR() {
   try {
     if (!SIGNALR_AVAILABLE || typeof signalRClient === 'undefined') return;
 
-    if (signalRClient.isConnected || signalRClient.connection) {
-      await signalRClient.disconnect();
-    }
-
+    // disconnect() is safe to call even when already disconnected
+    await signalRClient.disconnect();
     signalRClient.reconnectAttempts = 0;
+
     await initializeSignalR();
-    console.log('SignalR reconnected with new settings.');
+    console.log('SignalR: Reconnected with new settings.');
   } catch (error) {
     console.error('Error reconnecting SignalR:', error);
   }
