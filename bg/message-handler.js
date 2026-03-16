@@ -49,6 +49,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === 'disconnectSignalR') {
+    if (typeof signalRClient !== 'undefined') {
+      signalRClient.disconnect()
+        .then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: e.message }));
+    } else {
+      sendResponse({ success: true });
+    }
+    return true;
+  }
+
   if (message.action === 'clearHistory') {
     chrome.storage.local.set({
       seenJobs: [],
