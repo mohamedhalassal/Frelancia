@@ -925,14 +925,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Test notification
   if (message.action === 'testNotification') {
-    const testJobs = [{
-      id: 'test-' + Date.now(),
-      title: 'هذا إشعار تجريبي - مشروع تطوير موقع إلكتروني',
-      budget: '500 $',
-      url: 'https://mostaql.com/projects'
-    }];
-    showNotification(testJobs);
-    sendResponse({ success: true });
+    chrome.storage.local.get(['notificationsEnabled'], (data) => {
+      const isEnabled = data.notificationsEnabled !== false;
+      if (isEnabled) {
+        const testJobs = [{
+          id: 'test-' + Date.now(),
+          title: 'هذا إشعار تجريبي - مشروع تطوير موقع إلكتروني',
+          budget: '500 $',
+          url: 'https://mostaql.com/projects'
+        }];
+        showNotification(testJobs);
+        if (sendResponse) sendResponse({ success: true });
+      } else {
+        console.log('Test notification suppressed: notifications are disabled.');
+        if (sendResponse) sendResponse({ success: false, error: 'Notifications are disabled' });
+      }
+    });
     return true;
   }
 
