@@ -146,8 +146,6 @@ function getProjectDescription() {
         description = container.innerText.trim();
     }
 
-    description += `\nرابط المشروع: ${window.location.href}`;
-
     return description.trim();
 }
 

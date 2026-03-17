@@ -26,6 +26,8 @@ const DEFAULT_PROMPTS = [
 معلومات صاحب العمل:
 الاسم: {client_name} ({client_type})
 
+رابط المشروع: {url}
+
 وصف المشروع:
 {description}
 
