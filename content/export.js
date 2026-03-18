@@ -138,8 +138,23 @@ async function executeExportAll() {
                 displayAvatar = lastKnownSender.avatar;
             }
 
-            const textEl = msg.querySelector('.content p, .text-wrapper-div p, p, .text-wrapper-div');
-            const text = textEl ? textEl.innerText.trim() : "";
+            // Better extraction for chat messages: pick the container and ensure all text/lines are captured
+            const containerEl = msg.querySelector('.content, .text-wrapper-div');
+            let text = "";
+            if (containerEl) {
+                // To avoid getting extra text like avatars or times, we look for the direct text parts
+                // In Mostaql chat, messages are often multiple P tags or text with BR
+                text = containerEl.innerText.trim();
+            } else {
+                // Fallback: collect all P tags inside the message
+                const pTags = msg.querySelectorAll('p');
+                if (pTags.length > 0) {
+                    text = Array.from(pTags).map(p => p.innerText.trim()).join('\n');
+                } else {
+                    // Final fallback
+                    text = msg.innerText.trim();
+                }
+            }
 
             let attachments = [];
 
@@ -261,7 +276,8 @@ async function executeExportAll() {
             .msg-row.us { flex-direction: row-reverse; }
             .avatar-col { width: 60px; flex-shrink: 0; padding: 0 10px; text-align: center; }
             .avatar-col img { width: 45px; height: 45px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-            .bubble { max-width: 80%; padding: 12px 18px; border-radius: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); font-size: 13px; }
+            .bubble { max-width: 80%; padding: 12px 18px; border-radius: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); font-size: 13px; word-break: break-word; overflow-wrap: break-word; }
+            .text-content { white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; min-height: 1.2em; }
             .msg-row { page-break-inside: avoid; margin-bottom: 15px; }
             .us .bubble { background: #e3f2fd; color: #1e293b; border-top-right-radius: 4px; }
             .other .bubble { background: #fff; border: 1px solid var(--border-color); border-top-left-radius: 4px; }

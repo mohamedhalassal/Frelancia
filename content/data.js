@@ -439,7 +439,7 @@ function extractMyProposalFull(externalProjectData = null) {
 
         const contentEl = targetProposal.querySelector('.bid__details .text-wrapper-div') ||
                           targetProposal.querySelector('.text-wrapper-div');
-        let content = contentEl ? contentEl.innerText.trim().replace(/\s+/g, ' ') : "";
+        let content = contentEl ? contentEl.innerText.trim() : "";
         content = content.replace("... عرض المزيد", "").replace("عرض أقل", "").trim();
 
         const data = {
